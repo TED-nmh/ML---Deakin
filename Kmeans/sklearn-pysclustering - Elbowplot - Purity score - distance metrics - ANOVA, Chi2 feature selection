@@ -1,0 +1,182 @@
+# Import packages
+import numpy as np
+import pandas as pd
+import sklearn as sk
+import matplotlib.pyplot as plt
+import pyclustering
+
+## Import csv to data frame ##
+a2 = pd.read_csv('clustering.csv') 
+
+## Separate the class and feature matrix ##
+a2_feature = a2.iloc[:,0:7]
+a2_class = a2.iloc[:,7]
+
+# Preprocessing process - Normalization
+from sklearn.preprocessing import StandardScaler
+a2_norm = StandardScaler().fit_transform(a2_feature)
+
+## Determine the number of clusters ##
+
+from sklearn.cluster import KMeans
+
+SSE = []
+K = range(1,10)
+for k in K:
+    Elbow_method = KMeans(n_clusters = k, random_state = 0, max_iter = 1000).fit(a2_norm)
+    SSE.append(Elbow_method.inertia_)
+    
+plt.figure(figsize=(8,4))
+plt.plot(K, SSE, 'bx-')
+plt.xlabel('Number of clusters')
+plt.ylabel('Sum of Squared Errors')
+plt.title('Elbow method - Optimal k')
+plt.show()
+
+
+############################
+# Develop purity function #
+from sklearn import metrics
+def purity(y_true, y_predicted):
+    # create confusion matrix
+    cont_matrix = metrics.cluster.contingency_matrix(y_true, y_predicted)
+    print (cont_matrix)
+    # calculate purity
+    return np.sum(np.amax(cont_matrix, axis=0)) / np.sum(cont_matrix)
+    
+## Perform K-Means clustering ##
+Model_kmean = KMeans(n_clusters=3, random_state = 0, max_iter = 1000)
+Model_kmean.fit(a2_norm)
+predict = Model_kmean.predict(a2_norm)
+
+## Compute purity score ##
+Purity = purity(a2_class,predict)
+print('The purity score is', Purity)
+
+#############################################################
+from pyclustering.cluster.kmeans import kmeans, kmeans_visualizer
+from pyclustering.cluster.center_initializer import kmeans_plusplus_initializer
+from pyclustering.utils.metric import distance_metric, type_metric
+
+## Run K-means with Euclidean and calculate purity score ##
+
+# Find initial centers using K-Means++
+centers1 = kmeans_plusplus_initializer(a2_norm, 3, random_state =0).initialize()
+# Create metric Euclidean
+euc = distance_metric(type_metric.EUCLIDEAN)
+# Create instance of K-Means algorithm
+kmeans1 = kmeans(a2_norm, centers1, metric = euc, itermax = 1000)
+# Run cluster analysis
+kmeans1.process()
+predict1 = kmeans1.predict(a2_norm)
+
+#Calculate purity
+Purity1 = purity(a2_class,predict1)
+
+## Run K-means with Euclidean Square and calculate purity score ##
+
+# Find initial centers using K-Means++
+centers2 = kmeans_plusplus_initializer(a2_norm, 3, random_state =0).initialize()
+# Create metric Euclidean Square 
+eucsq = distance_metric(type_metric.EUCLIDEAN_SQUARE)
+# Create instance of K-Means algorithm
+kmeans2 = kmeans(a2_norm, centers2, metric = eucsq, itermax = 1000)
+# Run cluster analysis
+kmeans2.process()
+predict2 = kmeans2.predict(a2_norm)
+
+#Calculate purity
+Purity2 = purity(a2_class,predict2)
+
+## Run K-means with Manhattan and calculate purity score ##
+
+# Find initial centers using K-Means++
+centers3 = kmeans_plusplus_initializer(a2_norm, 3, random_state =0).initialize()
+# Create metric Manhattan
+mht = distance_metric(type_metric.MANHATTAN)
+# Create instance of K-Means algorithm
+kmeans3 = kmeans(a2_norm, centers3, metric = mht, itermax = 1000)
+# Run cluster analysis
+kmeans3.process()
+predict3 = kmeans3.predict(a2_norm)
+
+#Calculate purity
+Purity3 = purity(a2_class,predict3)
+
+## Run K-means with Chebyshev and calculate purity score ##
+
+# Find initial centers using K-Means++
+centers4 = kmeans_plusplus_initializer(a2_norm, 3, random_state =0).initialize()
+# Create metric Chebyshev
+cheb = distance_metric(type_metric.CHEBYSHEV)
+# Create instance of K-Means algorithm
+kmeans4 = kmeans(a2_norm, centers4, metric = cheb, itermax = 1000)
+# Run cluster analysis
+kmeans4.process()
+predict4 = kmeans4.predict(a2_norm)
+
+#Calculate purity
+Purity4 = purity(a2_class,predict4)
+
+## Run K-means with MINKOWSKI and calculate purity score ##
+
+# Find initial centers using K-Means++
+centers5 = kmeans_plusplus_initializer(a2_norm, 3, random_state =0).initialize()
+# Create metric Minkowski, degree=4 
+mink = distance_metric(type_metric.MINKOWSKI, degree=4)
+# Create instance of K-Means algorithm
+kmeans5 = kmeans(a2_norm, centers5, metric = mink, itermax = 1000)
+# Run cluster analysis
+kmeans5.process()
+predict5 = kmeans5.predict(a2_norm)
+
+#Calculate purity
+Purity5 = purity(a2_class,predict5)
+
+#################################################################
+#Use selection criteria (ANOVA, Chi-squared) to select best three features and use them for K-Means clustering. 
+#Based on the purity score which feature set are you going to recommend and why?
+
+## ANOVA feature selection ##
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import f_classif
+
+A = a2.iloc[:,0:7]
+B = a2.iloc[:,7]
+
+# Create SelectKBest object to select features with 3 best ANOVA F-Values
+sec_fvalue = SelectKBest(f_classif, k=3)
+A_best = sec_fvalue.fit_transform(A, B)
+
+print("The 3 best features by ANOVA feature selection is Height, Length and Min")
+
+## Perform K-Means clustering ##
+Kmean_mod = KMeans(n_clusters=3, random_state = 0, max_iter = 1000)
+Kmean_mod.fit(A_best)
+predict6 = Kmean_mod.predict(A_best)
+
+#Calculate purity
+Purity6 = purity(B,predict6)
+
+## Chi Square feature selection ##
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2
+
+C = a2.iloc[:,0:7]
+D = a2.iloc[:,7]
+
+C_int = C.astype(int)
+
+# Create SelectKBest object to select features with 3 best Chi-squared stats
+sec_chi2 = SelectKBest(chi2, k=3)
+C_best = sec_chi2.fit_transform(C_int, D)
+
+print ('The 3 best features by Chi2 feature seclection is Height, Length and Max')
+
+## Perform K-Means clustering ##
+Kmean_mod1 = KMeans(n_clusters=3, random_state = 0, max_iter = 1000)
+Kmean_mod1.fit(C.loc[:,['height','length','max']])
+predict7 = Kmean_mod1.predict(C.loc[:,['height','length','max']])
+
+#Calculate purity
+Purity7 = purity(D,predict7)
