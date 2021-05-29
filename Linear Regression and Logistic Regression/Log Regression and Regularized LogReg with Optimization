@@ -1,0 +1,40 @@
+# Create train, test data
+trainlg = q5.drop(['precip_type'],axis=1)
+testlg= q5.iloc[:,0]
+Xtrainlg, Xtestlg, Ytrainlg, Ytestlg = train_test_split(trainlg, testlg, test_size =0.3, random_state=0)
+
+# Create regularization hyperparameter for optimization
+lambda_test =[.0001,.0003,.001,.003,.01,.03,.1,.3,1,3,5,10]
+
+C = [1/x for x in lambda_test]
+
+# Create hyperparameter C
+hyperparameters = dict(C=C)
+
+
+# Optimize Logistic regression l2 
+lg = LogisticRegression(class_weight ='balanced', random_state=0, solver='liblinear', penalty='l2')
+
+lg_opt = GridSearchCV(lg, hyperparameters, scoring='accuracy', cv=5)
+
+lg_opt.fit(Xtrainlg,Ytrainlg)
+
+# Best parameters of L2
+print('The best C parameter for L2 is', lg_opt.best_params_)
+print('The best accuracy of L2 is',lg_opt.score(Xtestlg,Ytestlg))
+
+# Optimize Logistic regression l1
+lg1 = LogisticRegression(class_weight ='balanced', random_state=0, solver='liblinear', penalty='l1')
+
+lg_opt1 = GridSearchCV(lg1, hyperparameters, scoring='accuracy', cv=5)
+
+lg_opt1.fit(Xtrainlg,Ytrainlg)
+
+# Best parameters of L1
+print ('The best C parameter for L1 is', lg_opt1.best_params_)
+print ('The best accuracy of L1 is', lg_opt1.score(Xtestlg,Ytestlg))
+
+# Use best optimization model to predict whether the "precip_type" is "rain" or not 
+# and calculate accuracy with thresold = 0.45 (rain = 0, snow = 1)
+Ypred = np.where(lg_opt.predict_proba(Xtestlg)[:,1] == 0.45,1,0)
+print('the accuracy score between actual and prediction with thresold 0.45 is',accuracy_score(Ytestlg, Ypred))
